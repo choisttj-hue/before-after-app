@@ -8,7 +8,6 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkJlZm9yZSAmIEFmdGVyIiwKICAic2hvcnRfbmFtZSI6ICJCZWZvcmVBZnRlciIsCiAgInN0YXJ0X3VybCI6ICIvIiwKICAiZGlzcGxheSI6ICJzdGFuZGFsb25lIiwKICAiYmFja2dyb3VuZF9jb2xvciI6ICIjZmZmZmZmIiwKICAidGhlbWVfY29sb3IiOiAiIzk5MzNmZiIsCiAgImljb25zIjogWwogICAgewogICAgICAic3JjIjogImRhdGE6aW1hZ2Uvc3ZnK3htbDtiYXNlNjQsUEhOMlp5QjNhV1IwYUQwaU1USTRJaUJvWldsbmFIUTlJakV5T0NJZ2VHMXNibk05SW1oMGRIQTZMeTkzZDNjdWR6TXViM0puTHpJd01EQXZjM1puSWo0OGNtVmpkQ0IzYVdSMGFEMGlNVEk0SWlCb1pXbG5hSFE5SWpFeU9DSWdabWxzYkQwaVl6azVNek0yWmlJdlBqeDBaWGgwSUhnOUlqWTBJaUI1UFNJMk5DSWdkR1Y0ZEMxaGJtTm9iM0k5SW0xcFpHUnNaU0lnWm05dWRDMXphWHBsUFNJeU5DSWdabWxzYkQwaUkyWm1abVptWmlJK1FrVkdUMUpGSUNZZ1FVWlVSVkk4TDNSbGVIUStQQzl6ZG1jKyIsCiAgICAgICJzaXplcyI6ICIxMjh4MTI4IiwKICAgICAgInR5cGUiOiAiaW1hZ2Uvc3ZnK3htbCIKICAgIH0KICBdCn0=">
     <style>
         .slider-container input[type="range"] {
             -webkit-appearance: none;
@@ -34,21 +33,20 @@
             border: 2px solid #9333ea;
             box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
-        
-        .slider-container input[type="range"]::-moz-range-track {
-            background: rgba(255, 255, 255, 0.3);
-            height: 4px;
-            border-radius: 2px;
+
+        .file-input-container {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
         }
-        
-        .slider-container input[type="range"]::-moz-range-thumb {
-            background: #ffffff;
-            height: 20px;
-            width: 20px;
-            border-radius: 50%;
-            border: 2px solid #9333ea;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-            cursor: pointer;
+
+        .file-input-container input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .modal-backdrop {
+            backdrop-filter: blur(4px);
         }
     </style>
 </head>
@@ -56,11 +54,11 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState } = React;
+        const { useState, useRef } = React;
 
-        // Lucide React Icons (simplified)
-        const Heart = ({ size = 20, className = "" }) => (
-            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}>
+        // Icons
+        const Heart = ({ size = 20, filled = false, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" className={className}>
                 <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
             </svg>
         );
@@ -102,6 +100,21 @@
             </svg>
         );
 
+        const X = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}>
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+        );
+
+        const Upload = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}>
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7,10 12,5 17,10"></polyline>
+                <line x1="12" y1="5" x2="12" y2="15"></line>
+            </svg>
+        );
+
         const BeforeAfterApp = () => {
             const [posts, setPosts] = useState([
                 {
@@ -112,55 +125,127 @@
                     caption: '1년간의 꾸준한 운동 결과! 매일 30분씩 홈트레이닝 + 식단관리 💪',
                     tags: ['#홈트레이닝', '#다이어트', '#1년챌린지', '#변화'],
                     likes: 234,
-                    comments: 45,
+                    comments: [
+                        { user: '박지현', text: '정말 대단하세요! 어떤 운동 루틴 따라하셨나요?', time: '1시간 전' },
+                        { user: '이수진', text: '와 완전 다른 사람 같아요! 동기부여 됩니다 👏', time: '30분 전' }
+                    ],
                     timeAgo: '2시간 전',
-                    duration: '12개월'
-                },
-                {
-                    id: 2,
-                    user: { name: '박지영', username: 'jiyoung_home', avatar: '🏠' },
-                    beforeImage: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2Y1ZjVmNSIvPjx0ZXh0IHg9IjE1MCIgeT0iMTQwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjE2IiBmaWxsPSIjNjY2Ij5CRUZPRUE8L3RleHQ+PHRleHQgeD0iMTUwIiB5PSIxNjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiM2NjYiPuychOumvOyduO2FreumrDwvdGV4dD48L3N2Zz4=',
-                    afterImage: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2ZmZjhmMCIvPjx0ZXh0IHg9IjE1MCIgeT0iMTQwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjE2IiBmaWxsPSIjZGQ3NzAwIj5BRlRFUjwvdGV4dD4KPHRleHQgeD0iMTUwIiB5PSIxNjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiNkZDc3MDAiPuyYiOu6jO2VnCDsnbTsnIXtiLA8L3RleHQ+PC9zdmc+',
-                    caption: '작은 원룸도 이렇게 예쁘게! DIY로 만든 수납공간과 조명으로 완전히 새로운 느낌 ✨',
-                    tags: ['#원룸인테리어', '#DIY', '#수납정리', '#미니멀'],
-                    likes: 156,
-                    comments: 23,
-                    timeAgo: '5시간 전',
-                    duration: '2주'
-                },
-                {
-                    id: 3,
-                    user: { name: '이준호', username: 'junho_dev', avatar: '💻' },
-                    beforeImage: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2ZmZjVmNSIvPjx0ZXh0IHg9IjE1MCIgeT0iMTIwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjE0IiBmaWxsPSIjOTk5Ij5CRUZMR1E8L3RleHQ+PHRleHQgeD0iMTUwIiB5PSIxNDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiM5OTkiPkphdmFTY3JpcHQ8L3RleHQ+PHRleHQgeD0iMTUwIiB5PSIxNjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMTAiIGZpbGw9IiM5OTkiPuq4sOuPtCDspoDsi4jquLA8L3RleHQ+PHRleHQgeD0iMTUwIiB5PSIxODAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMTAiIGZpbGw9IiM5OTkiPu2FnOqwgCDsi5jqsIA8L3RleHQ+PC9zdmc+',
-                    afterImage: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2Y5ZmJmZiIvPjx0ZXh0IHg9IjE1MCIgeT0iMTIwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjE0IiBmaWxsPSIjMzMzIj5BRlRFUjwvdGV4dD4KPHRleHQgeD0iMTUwIiB5PSIxNDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiMzMzMiPlJlYWN0ICsgVFM8L3RleHQ+Cjx0ZXh0IHg9IjE1MCIgeT0iMTYwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjEwIiBmaWxsPSIjMzMzIj7quLDsl4UgqLOysggg+1kIODt5g7g8L3RleHQ+Cjx0ZXh0IHg9IjE1MCIgeT0iMTgwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjEwIiBmaWxsPSIjMzMzIj7tlZDroZzsobDtlLQ8L3RleHQ+PC9zdmc+',
-                    caption: '6개월 독학으로 프런트엔드 개발자 취업 성공! 매일 코딩하고 프로젝트 만들기를 반복했어요 🚀',
-                    tags: ['#코딩독학', '#프런트엔드', '#취업성공', '#React'],
-                    likes: 89,
-                    comments: 67,
-                    timeAgo: '1일 전',
-                    duration: '6개월'
-                },
-                {
-                    id: 4,
-                    user: { name: '최수연', username: 'suyeon_beauty', avatar: '💄' },
-                    beforeImage: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2ZmZjVmOCIvPjx0ZXh0IHg9IjE1MCIgeT0iMTQwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjE0IiBmaWxsPSIjYWE2Njg4Ij5CRUZPUEU8L3RleHQ+PHRleHQgeD0iMTUwIiB5PSIxNjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiNhYTY2ODgiPuuCmOyDpOumrOyKpO2CrOyWhTwvdGV4dD48L3N2Zz4=',
-                    afterImage: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2ZmZjBmNSIvPjx0ZXh0IHg9IjE1MCIgeT0iMTQwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjE0IiBmaWxsPSIjZDA5NjdkIj5BRlRFUjwvdGV4dD4KPHRleHQgeD0iMTUwIiB5PSIxNjAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiNkMDk2N2QiPuygnOq4sOuCmOyDpOq5iOyWrTwvdGV4dD48L3N2Zz4=',
-                    caption: '3개월 스킨케어 루틴 변화! 제품보다 꾸준함이 중요하다는 걸 깨달았어요 ✨',
-                    tags: ['#스킨케어', '#뷰티루틴', '#3개월챌린지', '#꾸준함'],
-                    likes: 312,
-                    comments: 89,
-                    timeAgo: '3시간 전',
-                    duration: '3개월'
+                    duration: '12개월',
+                    likedByUser: false
                 }
             ]);
 
             const [currentSlider, setCurrentSlider] = useState({});
+            const [showUploadModal, setShowUploadModal] = useState(false);
+            const [newPost, setNewPost] = useState({
+                beforeImage: null,
+                afterImage: null,
+                caption: '',
+                tags: '',
+                duration: ''
+            });
+            const [showComments, setShowComments] = useState({});
+            const [newComment, setNewComment] = useState({});
+
+            const beforeFileRef = useRef();
+            const afterFileRef = useRef();
 
             const handleSliderChange = (postId, value) => {
                 setCurrentSlider(prev => ({
                     ...prev,
                     [postId]: value
                 }));
+            };
+
+            const handleLike = (postId) => {
+                setPosts(prevPosts => 
+                    prevPosts.map(post => 
+                        post.id === postId 
+                            ? { 
+                                ...post, 
+                                likes: post.likedByUser ? post.likes - 1 : post.likes + 1,
+                                likedByUser: !post.likedByUser
+                            }
+                            : post
+                    )
+                );
+            };
+
+            const handleImageUpload = (file, type) => {
+                if (file && file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        setNewPost(prev => ({
+                            ...prev,
+                            [type]: e.target.result
+                        }));
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+
+            const handleSubmitPost = () => {
+                if (newPost.beforeImage && newPost.afterImage && newPost.caption && newPost.duration) {
+                    const post = {
+                        id: Date.now(),
+                        user: { name: '나', username: 'me', avatar: '👤' },
+                        beforeImage: newPost.beforeImage,
+                        afterImage: newPost.afterImage,
+                        caption: newPost.caption,
+                        tags: newPost.tags.split(' ').filter(tag => tag.startsWith('#')),
+                        likes: 0,
+                        comments: [],
+                        timeAgo: '방금 전',
+                        duration: newPost.duration,
+                        likedByUser: false
+                    };
+                    
+                    setPosts(prev => [post, ...prev]);
+                    setNewPost({
+                        beforeImage: null,
+                        afterImage: null,
+                        caption: '',
+                        tags: '',
+                        duration: ''
+                    });
+                    setShowUploadModal(false);
+                    
+                    // 성공 알림
+                    alert('포스트가 성공적으로 업로드되었습니다! 🎉');
+                } else {
+                    alert('모든 필드를 입력해주세요.');
+                }
+            };
+
+            const toggleComments = (postId) => {
+                setShowComments(prev => ({
+                    ...prev,
+                    [postId]: !prev[postId]
+                }));
+            };
+
+            const addComment = (postId) => {
+                const commentText = newComment[postId];
+                if (commentText && commentText.trim()) {
+                    setPosts(prevPosts => 
+                        prevPosts.map(post => 
+                            post.id === postId 
+                                ? { 
+                                    ...post, 
+                                    comments: [...post.comments, {
+                                        user: '나',
+                                        text: commentText.trim(),
+                                        time: '방금 전'
+                                    }]
+                                }
+                                : post
+                        )
+                    );
+                    setNewComment(prev => ({
+                        ...prev,
+                        [postId]: ''
+                    }));
+                }
             };
 
             const PostCard = ({ post }) => {
@@ -182,17 +267,14 @@
                             </div>
                         </div>
 
-                        {/* Before & After Images with Slider */}
+                        {/* Before & After Images */}
                         <div className="relative">
                             <div className="relative overflow-hidden" style={{ height: '300px' }}>
-                                {/* Before Image */}
                                 <img 
                                     src={post.beforeImage} 
                                     alt="Before" 
                                     className="absolute inset-0 w-full h-full object-cover"
                                 />
-                                
-                                {/* After Image with clip-path */}
                                 <img 
                                     src={post.afterImage} 
                                     alt="After" 
@@ -202,7 +284,6 @@
                                     }}
                                 />
                                 
-                                {/* Slider Control */}
                                 <div className="absolute bottom-4 left-4 right-4">
                                     <div className="slider-container flex items-center bg-black bg-opacity-60 rounded-full px-4 py-3 backdrop-blur-sm">
                                         <span className="text-white text-xs font-medium mr-3">BEFORE</span>
@@ -218,7 +299,6 @@
                                     </div>
                                 </div>
                                 
-                                {/* Divider Line */}
                                 <div 
                                     className="absolute top-0 bottom-0 w-0.5 bg-white shadow-lg"
                                     style={{ left: `${sliderValue}%` }}
@@ -230,7 +310,6 @@
                         <div className="p-4">
                             <p className="text-sm mb-3 leading-relaxed">{post.caption}</p>
                             
-                            {/* Tags */}
                             <div className="flex flex-wrap gap-2 mb-4">
                                 {post.tags.map((tag, index) => (
                                     <span key={index} className="bg-gray-100 text-gray-700 px-2 py-1 rounded-full text-xs hover:bg-gray-200 cursor-pointer transition-colors">
@@ -242,19 +321,69 @@
                             {/* Actions */}
                             <div className="flex items-center justify-between pt-3 border-t border-gray-100">
                                 <div className="flex items-center space-x-6">
-                                    <button className="flex items-center space-x-2 text-gray-600 hover:text-red-500 transition-colors">
-                                        <Heart size={20} />
+                                    <button 
+                                        onClick={() => handleLike(post.id)}
+                                        className={`flex items-center space-x-2 transition-colors ${
+                                            post.likedByUser ? 'text-red-500' : 'text-gray-600 hover:text-red-500'
+                                        }`}
+                                    >
+                                        <Heart size={20} filled={post.likedByUser} />
                                         <span className="text-sm font-medium">{post.likes}</span>
                                     </button>
-                                    <button className="flex items-center space-x-2 text-gray-600 hover:text-blue-500 transition-colors">
+                                    <button 
+                                        onClick={() => toggleComments(post.id)}
+                                        className="flex items-center space-x-2 text-gray-600 hover:text-blue-500 transition-colors"
+                                    >
                                         <MessageCircle size={20} />
-                                        <span className="text-sm font-medium">{post.comments}</span>
+                                        <span className="text-sm font-medium">{post.comments.length}</span>
                                     </button>
                                     <button className="text-gray-600 hover:text-green-500 transition-colors">
                                         <Share size={20} />
                                     </button>
                                 </div>
                             </div>
+
+                            {/* Comments Section */}
+                            {showComments[post.id] && (
+                                <div className="mt-4 pt-4 border-t border-gray-100">
+                                    <div className="space-y-3 mb-4">
+                                        {post.comments.map((comment, index) => (
+                                            <div key={index} className="flex space-x-3">
+                                                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-sm">
+                                                    👤
+                                                </div>
+                                                <div className="flex-1">
+                                                    <div className="bg-gray-50 rounded-lg px-3 py-2">
+                                                        <p className="font-semibold text-xs text-gray-800">{comment.user}</p>
+                                                        <p className="text-sm text-gray-700">{comment.text}</p>
+                                                    </div>
+                                                    <p className="text-xs text-gray-500 mt-1">{comment.time}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    
+                                    <div className="flex space-x-2">
+                                        <input
+                                            type="text"
+                                            placeholder="댓글을 입력하세요..."
+                                            value={newComment[post.id] || ''}
+                                            onChange={(e) => setNewComment(prev => ({
+                                                ...prev,
+                                                [post.id]: e.target.value
+                                            }))}
+                                            onKeyPress={(e) => e.key === 'Enter' && addComment(post.id)}
+                                            className="flex-1 px-3 py-2 border border-gray-300 rounded-full text-sm focus:outline-none focus:border-purple-500"
+                                        />
+                                        <button
+                                            onClick={() => addComment(post.id)}
+                                            className="px-4 py-2 bg-purple-600 text-white rounded-full text-sm hover:bg-purple-700 transition-colors"
+                                        >
+                                            게시
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 );
@@ -263,14 +392,17 @@
             return (
                 <div className="min-h-screen bg-gray-50">
                     {/* Header */}
-                    <header className="bg-white shadow-sm border-b sticky top-0 z-10">
+                    <header className="bg-white shadow-sm border-b sticky top-0 z-20">
                         <div className="max-w-md mx-auto px-4 py-3">
                             <div className="flex items-center justify-between">
                                 <h1 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
                                     Before & After
                                 </h1>
                                 <div className="flex items-center space-x-3">
-                                    <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                                    <button 
+                                        onClick={() => setShowUploadModal(true)}
+                                        className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                                    >
                                         <Camera size={24} />
                                     </button>
                                     <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
@@ -284,7 +416,6 @@
                     {/* Main Content */}
                     <main className="max-w-md mx-auto">
                         <div className="p-4">
-                            {/* Welcome Message */}
                             <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg p-4 mb-6">
                                 <h2 className="text-lg font-bold mb-2">변화의 순간을 공유하세요! 🌟</h2>
                                 <p className="text-sm opacity-90">당신의 Before & After 스토리로 다른 사람들에게 영감을 주세요</p>
@@ -293,89 +424,124 @@
                             {posts.map(post => (
                                 <PostCard key={post.id} post={post} />
                             ))}
-                            
-                            {/* Load More */}
-                            <div className="text-center py-8">
-                                <button className="bg-gray-100 hover:bg-gray-200 px-6 py-3 rounded-full text-gray-700 font-medium transition-colors">
-                                    더 많은 스토리 보기
-                                </button>
-                            </div>
                         </div>
                     </main>
 
-                    {/* Floating Action Button */}
-                    <button className="fixed bottom-6 right-6 bg-gradient-to-r from-purple-600 to-pink-600 text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
-                        <Plus size={24} />
-                    </button>
+                    {/* Upload Modal */}
+                    {showUploadModal && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 modal-backdrop flex items-center justify-center z-50 p-4">
+                            <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+                                <div className="sticky top-0 bg-white border-b p-4 flex items-center justify-between">
+                                    <h2 className="text-lg font-bold">새 포스트 만들기</h2>
+                                    <button 
+                                        onClick={() => setShowUploadModal(false)}
+                                        className="p-2 hover:bg-gray-100 rounded-full"
+                                    >
+                                        <X size={20} />
+                                    </button>
+                                </div>
 
-                    {/* PWA Install Prompt (Hidden by default) */}
-                    <div id="install-prompt" className="fixed bottom-20 left-4 right-4 bg-white rounded-lg shadow-xl p-4 hidden">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h3 className="font-bold text-sm">앱으로 설치하기</h3>
-                                <p className="text-xs text-gray-600">홈 화면에 추가하여 더 편리하게 사용하세요</p>
+                                <div className="p-4 space-y-4">
+                                    {/* Image Uploads */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium mb-2">Before 사진</label>
+                                            <div className="file-input-container">
+                                                <input
+                                                    ref={beforeFileRef}
+                                                    type="file"
+                                                    accept="image/*"
+                                                    onChange={(e) => handleImageUpload(e.target.files[0], 'beforeImage')}
+                                                />
+                                                <button
+                                                    onClick={() => beforeFileRef.current.click()}
+                                                    className="w-full h-32 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center hover:border-purple-500 transition-colors"
+                                                >
+                                                    {newPost.beforeImage ? (
+                                                        <img src={newPost.beforeImage} alt="Before" className="w-full h-full object-cover rounded-lg" />
+                                                    ) : (
+                                                        <>
+                                                            <Upload size={24} className="text-gray-400 mb-2" />
+                                                            <span className="text-xs text-gray-500">Before</span>
+                                                        </>
+                                                    )}
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium mb-2">After 사진</label>
+                                            <div className="file-input-container">
+                                                <input
+                                                    ref={afterFileRef}
+                                                    type="file"
+                                                    accept="image/*"
+                                                    onChange={(e) => handleImageUpload(e.target.files[0], 'afterImage')}
+                                                />
+                                                <button
+                                                    onClick={() => afterFileRef.current.click()}
+                                                    className="w-full h-32 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center hover:border-purple-500 transition-colors"
+                                                >
+                                                    {newPost.afterImage ? (
+                                                        <img src={newPost.afterImage} alt="After" className="w-full h-full object-cover rounded-lg" />
+                                                    ) : (
+                                                        <>
+                                                            <Upload size={24} className="text-gray-400 mb-2" />
+                                                            <span className="text-xs text-gray-500">After</span>
+                                                        </>
+                                                    )}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Caption */}
+                                    <div>
+                                        <label className="block text-sm font-medium mb-2">설명</label>
+                                        <textarea
+                                            value={newPost.caption}
+                                            onChange={(e) => setNewPost(prev => ({ ...prev, caption: e.target.value }))}
+                                            placeholder="변화에 대한 이야기를 들려주세요..."
+                                            className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:border-purple-500"
+                                            rows="3"
+                                        />
+                                    </div>
+
+                                    {/* Duration */}
+                                    <div>
+                                        <label className="block text-sm font-medium mb-2">변화 기간</label>
+                                        <input
+                                            type="text"
+                                            value={newPost.duration}
+                                            onChange={(e) => setNewPost(prev => ({ ...prev, duration: e.target.value }))}
+                                            placeholder="예: 3개월, 1년, 2주"
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-500"
+                                        />
+                                    </div>
+
+                                    {/* Tags */}
+                                    <div>
+                                        <label className="block text-sm font-medium mb-2">해시태그</label>
+                                        <input
+                                            type="text"
+                                            value={newPost.tags}
+                                            onChange={(e) => setNewPost(prev => ({ ...prev, tags: e.target.value }))}
+                                            placeholder="#다이어트 #운동 #변화"
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-500"
+                                        />
+                                    </div>
+
+                                    {/* Submit Button */}
+                                    <button
+                                        onClick={handleSubmitPost}
+                                        className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-lg font-medium hover:from-purple-700 hover:to-pink-700 transition-all"
+                                    >
+                                        포스트 업로드
+                                    </button>
+                                </div>
                             </div>
-                            <button id="install-btn" className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
-                                설치
-                            </button>
                         </div>
-                    </div>
-                </div>
-            );
-        };
+                    )}
 
-        ReactDOM.render(<BeforeAfterApp />, document.getElementById('root'));
-
-        // PWA Installation
-        let deferredPrompt;
-        const installPrompt = document.getElementById('install-prompt');
-        const installBtn = document.getElementById('install-btn');
-
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            installPrompt.classList.remove('hidden');
-        });
-
-        installBtn.addEventListener('click', async () => {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                deferredPrompt = null;
-                installPrompt.classList.add('hidden');
-            }
-        });
-
-        // Service Worker Registration (for PWA)
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                const swCode = `
-                    const CACHE_NAME = 'before-after-v1';
-                    const urlsToCache = ['/'];
-                    
-                    self.addEventListener('install', (event) => {
-                        event.waitUntil(
-                            caches.open(CACHE_NAME)
-                                .then((cache) => cache.addAll(urlsToCache))
-                        );
-                    });
-                    
-                    self.addEventListener('fetch', (event) => {
-                        event.respondWith(
-                            caches.match(event.request)
-                                .then((response) => response || fetch(event.request))
-                        );
-                    });
-                `;
-                
-                const blob = new Blob([swCode], { type: 'application/javascript' });
-                const swUrl = URL.createObjectURL(blob);
-                
-                navigator.serviceWorker.register(swUrl)
-                    .then(() => console.log('Service Worker registered'))
-                    .catch(() => console.log('Service Worker registration failed'));
-            });
-        }
-    </script>
-</body>
-</html>
+                    {/* Floating Action Button */}
+                    <button
